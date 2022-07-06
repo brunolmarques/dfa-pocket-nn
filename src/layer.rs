@@ -1,8 +1,6 @@
 use crate::activation::ActivationFunction;
 use crate::mat::WeightsInitializer;
 use crate::params::Params;
-
-use std::collections::HashMap;
 use std::io::Error;
 
 pub trait PocketLayer<T> {
@@ -19,19 +17,12 @@ pub trait PocketLayer<T> {
         bias_initializer: WeightsInitializer,
     ) -> Result<bool, Error>;
 
-    fn forward(&self, input: Vec<u32>) -> Vec<u32>;
+    fn forward(&self, node_input: Box<Vec<u32>>) -> Box<Vec<u32>>;
 
-    fn dfa(&self, dfa_weights: Vec<u32>) -> (&Vec<u32>, &Vec<u32>);
-
-    fn reset_params(&self);
+    fn dfa(&self, dfa_weights: Box<Vec<u32>>, node_input: Box<Vec<u32>>, node_output: Box<Vec<u32>>) -> (Box<Vec<u32>>, u32);
 
     fn has_weights(&self) -> bool {
         return false;
     }
 
-    fn get_params(&self) -> HashMap<&str, &str>;
-
-    fn get_param(&self, key: &str) -> (&str, &str);
-
-    fn set_param(&self, key: &str, value: T);
 }

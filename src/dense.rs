@@ -1,9 +1,7 @@
-use crate::activation::ActivationFunction;
+use crate::activation::*;
 use crate::layer::PocketLayer;
 use crate::mat::{self, WeightsInitializer};
 use crate::params::Params;
-
-use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 
 pub const SHRT_MAX: i32 = 32767;
@@ -51,50 +49,55 @@ impl<T> PocketLayer<T> for Dense {
         Ok(true)
     }
 
-    fn forward(&self, input: Vec<u32>) -> Vec<u32> {
+    fn forward(&self, node_input: Box<Vec<u32>>) -> Box<Vec<u32>> {
+
         let z = mat::forward_pass(
-            &input,
+            &node_input,
             &self.params.weights,
             &self.params.biases,
             self.layer_size,
             self.input_size,
         );
-        self.params.activation.apply_function(&z)
+        
+        self.params.activation.forward(z)
     }
 
-    fn dfa(&self, dfa_weights: Vec<u32>) -> (&Vec<u32>, &Vec<u32>) {
-        todo!()
-    }
+    fn dfa(&self, dfa_weights: Box<Vec<u32>>, node_input: Box<Vec<u32>>, node_output: Box<Vec<u32>>) -> (Box<Vec<u32>>, u32) {
+        let mut temp_weights: Box<Vec<u32>> = Box::new(vec![]);
 
-    fn reset_params(&self) {
-        todo!()
+        if !self.params.last_layer {
+            temp_weights = mat::dot(
+                &dfa_weights,
+                &self.params.biases,
+                self.layer_size,
+                self.input_size,
+            );
+        } else {
+            temp_weights = dfa_weights;
+        };
+
+        let grad = self.activation.gradient(node_output);
+
+        let egrad = Box::new(temp_weights.into_iter()
+            .zip(*grad)
+            .map(|(e, g)| e * g)
+            .collect::<Vec<_>>());
+
+        let dw = mat::dot(
+            &mat::transpose(&node_input, self.layer_size, self.input_size),
+            &egrad,
+            self.layer_size,
+            self.input_size,
+        );
+        let db = egrad.iter().sum::<u32>();
+        (dw, db)
     }
 
     fn has_weights(&self) -> bool {
         return false;
     }
 
-    fn get_params(&self) -> HashMap<&str, &str> {
-        todo!()
-    }
-
-    fn get_param(&self, key: &str) -> (&str, &str) {
-        todo!()
-    }
-
-    fn set_param(&self, key: &str, value: T) {
-        todo!()
-    }
-
     /*
-    fn get_output(&self) -> &Box<dyn Array> {
-        &self.params.output
-    }
-
-    fn get_weights(&self) -> &Box<dyn Array> {
-        &self.params.weights
-    }
-
     fn set_random_dfa_weights(&mut self, i: usize, c: usize) {
         // Using He initialization. Maybe other randomization can work better
         let range = mat::floor_sqrt((12 * SHRT_MAX) / (self.input_size + self.output_size) as i32);
